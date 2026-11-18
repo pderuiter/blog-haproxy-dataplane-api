@@ -1,0 +1,107 @@
+---
+- name: Install packages used by the API and the examples
+  ansible.builtin.apt:
+    name:
+      - curl
+      - jq
+      - openssl
+    state: present
+
+- name: Check installed Data Plane API version
+  ansible.builtin.command: /usr/local/bin/dataplaneapi --version
+  register: dataplaneapi_installed
+  changed_when: false
+  failed_when: false
+
+- name: Download and install the Data Plane API
+  ansible.builtin.unarchive:
+    src: "https://github.com/haproxytech/dataplaneapi/releases/download/v{{ dataplaneapi_version }}/dataplaneapi_{{ dataplaneapi_version }}_linux_x86_64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: true
+    include:
+      - dataplaneapi
+    owner: root
+    group: root
+    mode: "0755"
+  when: dataplaneapi_installed.stdout is not search('v' ~ (dataplaneapi_version | regex_escape) ~ ' ')
+  notify: Restart dataplaneapi
+
+- name: Create the resource directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ dataplaneapi_certs_dir }}"
+    - /etc/haproxy/maps
+    - /etc/haproxy/spoe
+
+- name: Install the API certificate
+  ansible.builtin.copy:
+    content: "{{ dataplaneapi_cert_pem }}"
+    dest: "{{ dataplaneapi_certs_dir }}/api.pem"
+    owner: root
+    group: haproxy
+    mode: "0640"
+  no_log: true
+  when: dataplaneapi_cert_pem | length > 0
+  notify: Restart haproxy
+
+- name: Generate a self-signed API certificate
+  ansible.builtin.shell:
+    cmd: >-
+      set -o pipefail &&
+      openssl req -x509 -newkey rsa:2048 -nodes -days 825
+      -subj "/CN={{ dataplaneapi_cert_cn }}"
+      -addext "subjectAltName=DNS:{{ dataplaneapi_cert_cn }},DNS:localhost"
+      -keyout /dev/stdout -out /dev/stdout 2>/dev/null
+      | (umask 027; cat > {{ dataplaneapi_certs_dir }}/api.pem)
+      && chgrp haproxy {{ dataplaneapi_certs_dir }}/api.pem
+    creates: "{{ dataplaneapi_certs_dir }}/api.pem"
+    executable: /bin/bash
+  when: dataplaneapi_cert_pem | length == 0
+  notify: Restart haproxy
+
+- name: Write haproxy.cfg
+  ansible.builtin.template:
+    src: haproxy.cfg.j2
+    dest: "{{ dataplaneapi_haproxy_config_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    validate: haproxy -c -f %s
+  notify: Restart haproxy
+
+- name: Write the Data Plane API configuration
+  ansible.builtin.template:
+    src: dataplaneapi.yaml.j2
+    dest: "{{ dataplaneapi_config_file }}"
+    # root and 0600: the API rewrites this file like this on every start
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart dataplaneapi
+
+- name: Install the systemd unit
+  ansible.builtin.template:
+    src: dataplaneapi.service.j2
+    dest: /etc/systemd/system/dataplaneapi.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart dataplaneapi
+
+- name: Start HAProxy
+  ansible.builtin.systemd_service:
+    name: haproxy
+    enabled: true
+    state: started
+
+- name: Enable and start the Data Plane API
+  ansible.builtin.systemd_service:
+    name: dataplaneapi
+    enabled: true
+    state: started
+    daemon_reload: true

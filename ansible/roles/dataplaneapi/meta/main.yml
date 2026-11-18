@@ -1,0 +1,20 @@
+---
+galaxy_info:
+  role_name: dataplaneapi
+  namespace: pderuiter
+  author: Patrick de Ruiter
+  description: HAProxy Data Plane API 3.x behind an HAProxy TLS frontend, as in the post
+  license: MIT
+  min_ansible_version: "2.15"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - noble
+    - name: Debian
+      versions:
+        - trixie
+  galaxy_tags:
+    - haproxy
+    - loadbalancer
+
+dependencies: []

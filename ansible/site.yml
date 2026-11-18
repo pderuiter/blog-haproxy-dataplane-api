@@ -1,0 +1,7 @@
+---
+- name: HAProxy with the Data Plane API
+  hosts: haproxy
+  gather_facts: true
+  roles:
+    - role: haproxy_install
+    - role: dataplaneapi

@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+[Unit]
+Description=HAProxy Data Plane API
+After=network.target haproxy.service
+Requires=haproxy.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/dataplaneapi -f {{ dataplaneapi_config_file }}
+Restart=on-failure
+RestartSec=5
+# Runs as root: it rewrites {{ dataplaneapi_haproxy_config_file }} and its own config file,
+# and calls systemctl to reload HAProxy. As User=haproxy it exits with
+# "Error saving configuration: ... permission denied".
+
+[Install]
+WantedBy=multi-user.target

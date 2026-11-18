@@ -1,0 +1,10 @@
+---
+# Copy to vault.yml, set the hash and encrypt it:
+#   mkpasswd -m sha-512 'your-secure-password'     (package "whois")
+#   ansible-vault encrypt group_vars/all/vault.yml
+# The same hash goes into dataplaneapi.yaml and the api_users userlist.
+vault_dataplaneapi_password_hash: "$6$changeme$replace-with-mkpasswd-output"
+# Optional: your own certificate and key for the API frontend, in one PEM
+# vault_dataplaneapi_cert_pem: |
+#   -----BEGIN CERTIFICATE-----
+#   ...

@@ -1,0 +1,10 @@
+---
+haproxy_install_version: "3.3"
+dataplaneapi_version: "3.4.7"
+dataplaneapi_user: admin
+dataplaneapi_cert_cn: haproxy.example.com
+dataplaneapi_web_servers:
+  - name: web1
+    address: 192.168.1.10:8080
+  - name: web2
+    address: 192.168.1.11:8080

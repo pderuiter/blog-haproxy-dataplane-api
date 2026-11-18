@@ -1,0 +1,29 @@
+---
+dataplaneapi_version: "3.4.7"
+dataplaneapi_name: haproxy_dataplane
+
+# API user. The password is stored as a SHA-512 crypt hash, as in the post:
+#   mkpasswd -m sha-512 'your-secure-password'
+dataplaneapi_user: admin
+dataplaneapi_password_hash: "{{ vault_dataplaneapi_password_hash }}"
+
+# The API itself listens on localhost; HAProxy publishes it with TLS on 5556
+dataplaneapi_host: "0.0.0.0"
+dataplaneapi_port: 5555
+dataplaneapi_tls_port: 5556
+
+dataplaneapi_config_file: /etc/haproxy/dataplaneapi.yaml
+dataplaneapi_haproxy_config_file: /etc/haproxy/haproxy.cfg
+dataplaneapi_certs_dir: /etc/haproxy/certs
+
+# TLS certificate (certificate and key in one PEM) for the API frontend.
+# Empty: a self-signed certificate for dataplaneapi_cert_cn is generated once.
+dataplaneapi_cert_pem: ""
+dataplaneapi_cert_cn: haproxy.example.com
+
+# Application backend from the post
+dataplaneapi_web_servers:
+  - name: web1
+    address: 192.168.1.10:8080
+  - name: web2
+    address: 192.168.1.11:8080
