@@ -7,13 +7,16 @@ dataplaneapi_name: haproxy_dataplane
 dataplaneapi_user: admin
 dataplaneapi_password_hash: "{{ vault_dataplaneapi_password_hash }}"
 
-# The API itself listens on localhost; HAProxy publishes it with TLS on 5556
-dataplaneapi_host: "0.0.0.0"
+# The API itself listens on localhost only (plain HTTP); HAProxy publishes it
+# with TLS and basic auth on 5556
+dataplaneapi_host: "127.0.0.1"
 dataplaneapi_port: 5555
 dataplaneapi_tls_port: 5556
 
 dataplaneapi_config_file: /etc/haproxy/dataplaneapi.yaml
 dataplaneapi_haproxy_config_file: /etc/haproxy/haproxy.cfg
+# Written after the first haproxy.cfg; from then on the Data Plane API owns it
+dataplaneapi_bootstrap_marker: /etc/haproxy/.haproxy-cfg-bootstrapped
 dataplaneapi_certs_dir: /etc/haproxy/certs
 
 # TLS certificate (certificate and key in one PEM) for the API frontend.

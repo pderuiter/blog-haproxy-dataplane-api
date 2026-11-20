@@ -64,15 +64,36 @@
   when: dataplaneapi_cert_pem | length == 0
   notify: Restart haproxy
 
-- name: Write haproxy.cfg
+# haproxy.cfg is bootstrap-only: the playbook writes it once, after that the
+# Data Plane API owns it. The haproxy package ships its own haproxy.cfg, so
+# force: false alone would never write the template; the marker file records
+# that the bootstrap happened. Delete the marker to write the template again.
+- name: Check whether haproxy.cfg was bootstrapped
+  ansible.builtin.stat:
+    path: "{{ dataplaneapi_bootstrap_marker }}"
+  register: dataplaneapi_bootstrapped
+
+- name: Write the initial haproxy.cfg
   ansible.builtin.template:
     src: haproxy.cfg.j2
     dest: "{{ dataplaneapi_haproxy_config_file }}"
     owner: root
     group: root
     mode: "0644"
+    force: "{{ not dataplaneapi_bootstrapped.stat.exists }}"
     validate: haproxy -c -f %s
   notify: Restart haproxy
+
+- name: Mark haproxy.cfg as owned by the Data Plane API
+  ansible.builtin.copy:
+    dest: "{{ dataplaneapi_bootstrap_marker }}"
+    content: |
+      haproxy.cfg was bootstrapped by Ansible and is now managed by the Data Plane API.
+      Delete this file to let the playbook write its template again.
+    owner: root
+    group: root
+    mode: "0644"
+    force: false
 
 - name: Write the Data Plane API configuration
   ansible.builtin.template:

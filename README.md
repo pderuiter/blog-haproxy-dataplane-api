@@ -4,7 +4,7 @@ Companion code for the blog post
 [HAProxy Data Plane API: Dynamic Configuration Management](https://blog.bsdserver.nl/haproxy-data-plane-api-dynamic-configuration-management/).
 
 It builds the post's setup on one host: HAProxy from the official HAProxy
-packages, the HAProxy Data Plane API 3.x on port 5555 with the post's
+packages, the HAProxy Data Plane API 3.x on `127.0.0.1:5555` with the post's
 `dataplaneapi.yaml`, and an HAProxy TLS frontend on port 5556 that publishes
 the API with basic authentication (`api_users` userlist), next to the
 application frontend and the `web_servers` backend from the post.
@@ -61,6 +61,7 @@ Set in `ansible/group_vars/all/vars.yml` (defaults in each role's `defaults/main
 | `dataplaneapi_version` | `3.4.7` | Data Plane API release. Changing it upgrades (or downgrades) an existing install |
 | `dataplaneapi_user` | `admin` | API user, in `dataplaneapi.yaml` and in the `api_users` userlist |
 | `vault_dataplaneapi_password_hash` | (vault) | SHA-512 crypt hash from `mkpasswd -m sha-512` |
+| `dataplaneapi_host` | `127.0.0.1` | Where the API listens. Plain HTTP, so localhost only; clients use the TLS frontend |
 | `dataplaneapi_port` / `dataplaneapi_tls_port` | `5555` / `5556` | Data Plane API, and the HAProxy TLS frontend in front of it |
 | `dataplaneapi_cert_pem` | `""` | Certificate and key (one PEM) for the TLS frontend; empty generates a self-signed one for `dataplaneapi_cert_cn` |
 | `dataplaneapi_web_servers` | `web1`, `web2` | Servers in the `web_servers` backend (`name`, `address` as `ip:port`) |
@@ -76,10 +77,12 @@ Set in `ansible/group_vars/all/vars.yml` (defaults in each role's `defaults/main
 
 ## Ansible or the API
 
-The Data Plane API changes `haproxy.cfg` itself. A later run of this playbook
-writes the template back and undoes those changes. Use the playbook for the
-initial install and upgrades, and the API from then on, or add the changes you
-make through the API to `dataplaneapi_web_servers`.
+`haproxy.cfg` is bootstrap-only. The first run replaces the package's default
+file with the template (including `dataplaneapi_web_servers`) and writes the
+marker `/etc/haproxy/.haproxy-cfg-bootstrapped`. After that the template task
+runs with `force: false` and the Data Plane API owns `haproxy.cfg`: later runs
+leave changes made through the API alone. Delete the marker to write the
+template again (this overwrites the API's changes).
 
 ## Tested
 
@@ -88,7 +91,10 @@ make through the API to `dataplaneapi_web_servers`.
 a run after restarting both services. After that, `/v3/info` answered through
 the TLS frontend (401 without credentials), a v3 transaction added a server
 that showed up in the runtime, a runtime drain took effect, and the application
-frontend served HTTP and HTTPS. ansible-lint (production profile), yamllint,
+frontend served HTTP and HTTPS. Port 5555 is not reachable from other hosts.
+The post's `canary-deploy.sh` gave the canary 99 of 1000 requests after
+`shift 10` and 249 after `shift 25`, also after a reload, and a playbook run
+after those API changes kept them (`changed=0`). ansible-lint (production profile), yamllint,
 `terraform validate` and tflint are clean. The Terraform code has not been
 applied against a real Proxmox cluster.
 
